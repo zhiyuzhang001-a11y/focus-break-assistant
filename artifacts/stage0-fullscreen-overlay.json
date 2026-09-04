@@ -1,0 +1,15 @@
+{
+  "canBecomeKey" : false,
+  "canBecomeMain" : false,
+  "effectiveAppearance" : "dark",
+  "frontmostApplicationUnchanged" : true,
+  "frontmostPIDAfter" : 649,
+  "frontmostPIDBefore" : 649,
+  "ignoresMouseEvents" : true,
+  "increaseContrastEnabled" : false,
+  "isKeyWindow" : false,
+  "isMainWindow" : false,
+  "reduceMotionEnabled" : false,
+  "reduceTransparencyEnabled" : false,
+  "windowLevel" : 3
+}

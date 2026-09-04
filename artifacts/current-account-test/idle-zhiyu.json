@@ -1,0 +1,10 @@
+{
+  "combinedAnyInputSeconds" : 0.004705667,
+  "hidAndCombinedAgree" : true,
+  "hidAnyInputSeconds" : 0.004705209,
+  "hidKeyDownSeconds" : 28.544594167,
+  "hidMouseMovedSeconds" : 0.004705875,
+  "hidNullEventSeconds" : 781.573503458,
+  "hidScrollWheelSeconds" : 12.337382875,
+  "selectedIdleSeconds" : 0.004705209
+}

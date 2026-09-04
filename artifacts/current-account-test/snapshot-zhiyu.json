@@ -1,0 +1,30 @@
+{
+  "accessibilityTrusted" : false,
+  "activeDisplayID" : 1,
+  "activeDisplaySource" : "frontmost_window_bounds",
+  "capturedAt" : "2026-09-01T05:10:17Z",
+  "coordinateSpace" : "quartz_global_top_left",
+  "displays" : [
+    {
+      "frame" : {
+        "height" : 1440,
+        "width" : 2560,
+        "x" : 0,
+        "y" : 0
+      },
+      "id" : 1,
+      "isMain" : true,
+      "visibleFrame" : {
+        "height" : 1320,
+        "width" : 2560,
+        "x" : 0,
+        "y" : 30
+      }
+    }
+  ],
+  "displaysSleeping" : false,
+  "focusedWindowFullScreen" : "no",
+  "idleSeconds" : 0.00390375,
+  "screenLocked" : false,
+  "systemSleeping" : false
+}

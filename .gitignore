@@ -1,0 +1,15 @@
+.build/
+.swiftpm/
+.DS_Store
+*.xcuserstate
+artifacts/stage0-safe-*/
+artifacts/stage0-manual-*/
+artifacts/stage0-resource-*/
+artifacts/stage0-resource-launch-*.log
+artifacts/stage0-resource-launch-*.err
+artifacts/stage1-runtime-*/
+artifacts/stage1-visual-*/
+artifacts/stage1-visual-matrix-*/
+artifacts/stage1-visual-matrix-*-manifest.json
+artifacts/stage1-network-candidates-*/sources/
+artifacts/stage1-network-candidates-*/mockups/
