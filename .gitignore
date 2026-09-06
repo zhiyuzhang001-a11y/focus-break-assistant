@@ -1,6 +1,7 @@
 .build/
 .swiftpm/
 .DS_Store
+.agent-token-manager/
 *.xcuserstate
 artifacts/stage0-safe-*/
 artifacts/stage0-manual-*/
@@ -11,5 +12,7 @@ artifacts/stage1-runtime-*/
 artifacts/stage1-visual-*/
 artifacts/stage1-visual-matrix-*/
 artifacts/stage1-visual-matrix-*-manifest.json
+artifacts/stage1-bundled-*/
+artifacts/stage1-bundled-*-manifest.json
 artifacts/stage1-network-candidates-*/sources/
 artifacts/stage1-network-candidates-*/mockups/

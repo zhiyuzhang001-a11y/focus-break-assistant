@@ -6,7 +6,7 @@
 
 - `FocusBreakProbeCore`：与 AppKit 无关的显示器选择、全屏几何判断和浮层位置策略；
 - `focus-break-probe`：idle、会话切换、系统睡眠、显示器睡眠三态、活动屏幕、全屏和权限探针；常驻活动快照与按需窗口上下文分离；
-- Horizon Gap 临时浮层：无声音、不可成为 key/main window、点击穿透；
+- Horizon Gap “半透明日光”浮层：内置深浅氛围资源、原生中文、无声音、不可成为 key/main window、点击穿透；
 - 自动化测试与本机阶段 0 实验记录。
 
 探针不会读取或输出按键、鼠标位置、窗口标题、应用名称或屏幕内容。

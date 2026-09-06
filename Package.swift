@@ -15,7 +15,8 @@ let package = Package(
         .target(name: "FocusBreakProbeCore"),
         .executableTarget(
             name: "FocusBreakProbe",
-            dependencies: ["FocusBreakProbeCore"]
+            dependencies: ["FocusBreakProbeCore"],
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "FocusBreakProbeCoreTests",

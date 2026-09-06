@@ -13,6 +13,11 @@ enum HorizonTextVariant: String, CaseIterable {
     }
 }
 
+private enum HorizonStyle {
+    static let size = NSSize(width: 520, height: 128)
+    static let cornerRadius: CGFloat = 24
+}
+
 @MainActor
 final class HorizonPanel: NSPanel {
     override var canBecomeKey: Bool { false }
@@ -26,7 +31,7 @@ final class HorizonOverlay {
 
     init(screen: NSScreen, textVariant: HorizonTextVariant = .fourteen) {
         self.textVariant = textVariant
-        let size = NSSize(width: 252, height: 76)
+        let size = HorizonStyle.size
         let visible = RectSnapshot(
             x: Double(screen.visibleFrame.origin.x),
             y: Double(screen.visibleFrame.origin.y),
@@ -57,9 +62,9 @@ final class HorizonOverlay {
     }
 
     func show(
-        fadeIn: TimeInterval = 0.7,
-        hold: TimeInterval = 4.8,
-        fadeOut: TimeInterval = 1.1,
+        fadeIn: TimeInterval = 0.8,
+        hold: TimeInterval = 5.0,
+        fadeOut: TimeInterval = 0.8,
         terminateApplicationOnCompletion: Bool = true,
         onDismiss: (@MainActor () -> Void)? = nil
     ) {
@@ -155,6 +160,8 @@ final class HorizonOverlay {
 @MainActor
 private final class HorizonView: NSView {
     private let textVariant: HorizonTextVariant
+    private let lightImage = HorizonView.loadImage(named: "AtmosphereLight")
+    private let darkImage = HorizonView.loadImage(named: "AtmosphereDark")
 
     override var isFlipped: Bool { true }
 
@@ -195,55 +202,94 @@ private final class HorizonView: NSView {
         let displayOptions = workspace.displayAccessibilityOptions
         let increaseContrast = displayOptions.increaseContrast
         let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        let background = isDark
+        let fallbackBackground = isDark
             ? NSColor(
-                calibratedWhite: 0.10,
-                alpha: OverlayAccessibilityPolicy.surfaceAlpha(defaultAlpha: 0.86, options: displayOptions)
+                calibratedRed: 0.34,
+                green: 0.29,
+                blue: 0.26,
+                alpha: OverlayAccessibilityPolicy.surfaceAlpha(defaultAlpha: 0.94, options: displayOptions)
             )
             : NSColor(
-                calibratedRed: 0.97,
-                green: 0.96,
-                blue: 0.93,
-                alpha: OverlayAccessibilityPolicy.surfaceAlpha(defaultAlpha: 0.88, options: displayOptions)
+                calibratedRed: 0.82,
+                green: 0.75,
+                blue: 0.65,
+                alpha: OverlayAccessibilityPolicy.surfaceAlpha(defaultAlpha: 0.94, options: displayOptions)
             )
         let textColor = isDark
-            ? NSColor(calibratedWhite: increaseContrast ? 1 : 0.93, alpha: 1)
-            : NSColor(calibratedWhite: increaseContrast ? 0.08 : 0.18, alpha: 1)
-        let lineColor = isDark
-            ? NSColor(calibratedRed: 0.55, green: 0.70, blue: 0.71, alpha: 1)
-            : NSColor(calibratedRed: 0.25, green: 0.38, blue: 0.37, alpha: 1)
+            ? NSColor(calibratedWhite: increaseContrast ? 1 : 0.96, alpha: 1)
+            : NSColor(calibratedWhite: increaseContrast ? 0.06 : 0.15, alpha: 1)
 
-        background.setFill()
-        let surface = NSBezierPath(roundedRect: bounds, xRadius: 10, yRadius: 10)
+        let surface = NSBezierPath(
+            roundedRect: bounds.insetBy(dx: 1, dy: 1),
+            xRadius: HorizonStyle.cornerRadius,
+            yRadius: HorizonStyle.cornerRadius
+        )
+        NSGraphicsContext.saveGraphicsState()
+        surface.addClip()
+        fallbackBackground.setFill()
         surface.fill()
+
+        if !displayOptions.reduceTransparency,
+           let image = isDark ? darkImage : lightImage {
+            image.draw(
+                in: bounds,
+                from: image.sourceRect(aspectFilling: bounds.size),
+                operation: .sourceOver,
+                fraction: OverlayAccessibilityPolicy.surfaceAlpha(defaultAlpha: 0.94, options: displayOptions),
+                respectFlipped: true,
+                hints: [.interpolation: NSImageInterpolation.high]
+            )
+            (isDark
+                ? NSColor(calibratedRed: 0.13, green: 0.11, blue: 0.10, alpha: 0.28)
+                : NSColor(calibratedRed: 0.72, green: 0.64, blue: 0.54, alpha: 0.08)
+            ).setFill()
+            bounds.fill()
+        }
+        NSGraphicsContext.restoreGraphicsState()
+
         if OverlayAccessibilityPolicy.showsOutline(options: displayOptions) {
             textColor.withAlphaComponent(0.55).setStroke()
-            surface.lineWidth = 1
+            surface.lineWidth = OverlayAccessibilityPolicy.lineWidth(options: displayOptions)
             surface.stroke()
         }
 
-        lineColor.setStroke()
-        let line = NSBezierPath()
-        line.lineWidth = OverlayAccessibilityPolicy.lineWidth(options: displayOptions)
-        line.move(to: NSPoint(x: 72, y: 18.5))
-        line.line(to: NSPoint(x: 122, y: 18.5))
-        line.move(to: NSPoint(x: 132, y: 18.5))
-        line.line(to: NSPoint(x: 182, y: 18.5))
-        line.stroke()
-
         let paragraph = NSMutableParagraphStyle()
-        paragraph.alignment = .center
-        paragraph.lineSpacing = 2
+        paragraph.alignment = .left
+        paragraph.lineSpacing = 5
         let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: textVariant.pointSize, weight: .regular),
+            .font: NSFont.systemFont(ofSize: textVariant.pointSize, weight: .medium),
             .foregroundColor: textColor,
             .paragraphStyle: paragraph
         ]
         let message = "给下一段留一点余白。\n让目光去远处停一会儿。"
         message.draw(
-            in: NSRect(x: 12, y: 30, width: bounds.width - 24, height: 42),
+            in: NSRect(x: 40, y: 38, width: bounds.width - 80, height: 58),
             withAttributes: attributes
         )
+    }
+
+    private static func loadImage(named name: String) -> NSImage? {
+        guard let url = Bundle.module.url(forResource: name, withExtension: "png") else {
+            return nil
+        }
+        return NSImage(contentsOf: url)
+    }
+}
+
+private extension NSImage {
+    func sourceRect(aspectFilling destinationSize: NSSize) -> NSRect {
+        guard size.width > 0, size.height > 0,
+              destinationSize.width > 0, destinationSize.height > 0 else {
+            return NSRect(origin: .zero, size: size)
+        }
+        let sourceAspect = size.width / size.height
+        let destinationAspect = destinationSize.width / destinationSize.height
+        if sourceAspect > destinationAspect {
+            let width = size.height * destinationAspect
+            return NSRect(x: (size.width - width) / 2, y: 0, width: width, height: size.height)
+        }
+        let height = size.width / destinationAspect
+        return NSRect(x: 0, y: (size.height - height) / 2, width: size.width, height: height)
     }
 }
 
@@ -276,7 +322,7 @@ private final class HorizonPreviewCanvas: NSView {
         super.init(frame: frameRect)
         appearance = NSAppearance(named: environment.appearanceName)
 
-        let overlaySize = NSSize(width: 252, height: 76)
+        let overlaySize = HorizonStyle.size
         let origin = GeometryPolicy.overlayOrigin(
             size: (Double(overlaySize.width), Double(overlaySize.height)),
             visibleFrame: RectSnapshot(x: 0, y: 25, width: 1440, height: 850)

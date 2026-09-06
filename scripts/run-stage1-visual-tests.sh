@@ -39,5 +39,11 @@ jq -e '
     .overlay.canBecomeMain == false
 ' "$results_dir/preview-menu.json" >/dev/null
 
+"$project_root/scripts/build-probe-app.sh" >/dev/null
+resource_bundle="$project_root/.build/FocusBreakProbe.app/Contents/Resources/FocusBreakAssistant_FocusBreakProbe.bundle"
+test -f "$resource_bundle/AtmosphereLight.png"
+test -f "$resource_bundle/AtmosphereDark.png"
+/usr/bin/codesign --verify --deep --strict "$project_root/.build/FocusBreakProbe.app"
+
 print -r -- "Stage 1 automated visual checks passed."
 print -r -- "Results: $results_dir"
