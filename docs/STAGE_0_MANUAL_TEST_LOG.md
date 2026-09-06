@@ -104,9 +104,9 @@ open -n .build/FocusBreakProbe.app --args --verify-bundled-overlay
 
 ## T0-10：长时资源与能源
 
-- 日期/机器：2026-09-01、2026-09-04 / 当前 Mac mini；独立后台 8 小时采样于 2026-09-04 14:11:57 启动，进行中
-- 操作：Release Bundle 正常运行 8 小时，用 Instruments Energy Log 与 Allocations 观察；覆盖工作、idle、锁屏和唤醒。
+- 日期/机器：2026-09-01、2026-09-04 / 当前 Mac mini；独立后台 8 小时采样已完成
+- 操作：Release Bundle 正常运行 8 小时；每分钟采集 RSS 与 CPU，并以 1 Hz 保存隐私最小活动快照。正式 Instruments Energy Log 未在本批次执行。
 - 预期：无持续高 Energy Impact；内存不持续增长；事件监听不会产生高频唤醒；1 Hz 轮询如成为主要能源来源则降低频率或改为事件驱动。
-- 记录位置：`artifacts/stage0-resource-20260901-134818`（90 分钟部分记录）与 `/Users/Shared/FocusBreakAssistant-Test/stage0-resource-20260904-141156`（当前独立后台批次；尚无正式 Instruments trace）
-- 结果：2026-09-01 批次因 Codex 任务宿主结束而在 5,405 秒后中止，未生成完整汇总；91 个样本中 RSS 从 12,624 KB 降至 11,552 KB，范围 11,520–12,832 KB，平均 CPU 0.006593%，无错误关键字。它是有效的 90 分钟稳定性证据，但不冒充 8 小时结果。2026-09-04 已完成独立后台链路自检并启动完整批次。
-- 结论/问题：等待当前批次约 2026-09-04 22:12 完成后验收。新启动方式使用 `KeepAlive=false` 的用户 LaunchAgent，测试不再依赖 Codex/终端持续打开；后台服务因 macOS 隐私隔离改从 `/Users/Shared` 自包含目录运行。该脚本不直接测量 macOS Energy Impact，完成后仍需结合 Energy 面板或 System Trace 才能形成能源结论。
+- 记录位置：精简验收记录为[`artifacts/stage0-resource-final-20260904.md`](../artifacts/stage0-resource-final-20260904.md)；原始批次位于 `/Users/Shared/FocusBreakAssistant-Test/stage0-resource-20260904-141156`
+- 结果：完整批次取得 479 个每分钟进程样本，覆盖 28,756 秒。RSS 从 12,400 KB 降至 11,344 KB，范围 11,024–12,672 KB，线性趋势为每小时 `-70.865 KB`；平均 CPU 为 `0.012109%`。1 Hz 活动快照共 28,800 条，必需字段无缺失；启动日志为空，批次状态为 `complete`。
+- 结论/问题：通过长时内存与 CPU 稳定性验收，没有持续内存增长或异常 CPU 的证据。该脚本不直接测量 macOS Energy Impact，因此正式 Energy Trace 仍是发布前残余验证；本次 8 小时内未发生系统睡眠或会话切换，这些路径继续由已有独立实测覆盖。
