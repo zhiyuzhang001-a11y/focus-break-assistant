@@ -1,55 +1,77 @@
 # Focus Break Assistant
 
-隐私优先、低打扰的 macOS 离屏休息助手。“阶段 0：技术可行性探针”已关闭，当前正在完成“阶段 1：视觉提醒原型”，尚不是可发布产品。
+**给下一段专注，留一点余白。**
 
-## 当前内容
+一个低打扰的 macOS 菜单栏休息助手。用一张照片提醒你短暂离开屏幕；可以开始休息、稍后再说，也可以直接跳过。
 
-- `FocusBreakProbeCore`：与 AppKit 无关的显示器选择、全屏几何判断和浮层位置策略；
-- `focus-break-probe`：idle、会话切换、系统睡眠、显示器睡眠三态、活动屏幕、全屏和权限探针；常驻活动快照与按需窗口上下文分离；
-- Horizon Gap “半透明日光”浮层：内置深浅氛围资源、原生中文、无声音、不可成为 key/main window、点击穿透；
-- 自动化测试与本机阶段 0 实验记录。
+支持 macOS 14+ · Swift 6.2 · 原生 AppKit · 当前为开发试用版
 
-探针不会读取或输出按键、鼠标位置、窗口标题、应用名称或屏幕内容。
+## 日常使用
 
-idle 使用 Core Graphics 的 HID `kCGAnyInputEventType` 语义，只读取距离上一次输入的秒数；不安装键盘事件监听，也不记录具体输入事件。
+- **提醒有分寸**：默认累计使用 45 分钟提醒；全屏时延后，暂离时暂停，休息后重新计时。
+- **处理很直接**：开始休息、稍后 5 分钟、跳过本次，或按 Esc 收起。停留时间可调，追加提醒默认关闭。
+- **照片由你选择**：内置风景、本地文件夹、系统照片选择器，以及自然、宇宙、动物、城市、人物、卡通六类在线图片。
+- **留下喜欢的**：收藏独立保存；屏蔽不喜欢的图片，轮换时尽量避开相似画面。
+- **画面保持自然**：照片保持原比例，向下展开；实心白字与柔和阴影，透明文字背景，可选中央、下方或简短提醒。
+- **每天少一步**：默认沿用上次分类，在菜单倒计时子菜单中快速切换。
 
-## 运行
+菜单栏只保留 **倒计时 · 暂停 · 预览 · 设置 · 退出**。设置分为 **提醒、图片库、通用**。
 
-需要 macOS 14 或更高版本及 Xcode Command Line Tools。
+## 快速开始
+
+需要 macOS 14 或以上，以及支持 Swift 6.2 的 Xcode / Command Line Tools。
 
 ```sh
+git clone https://github.com/zhiyuzhang001-a11y/focus-break-assistant.git
+cd focus-break-assistant
 swift test
-swift run focus-break-probe --snapshot
-swift run focus-break-probe --snapshot-no-accessibility
-swift run focus-break-probe --watch 30
-swift run focus-break-probe --watch-context 30
-swift run focus-break-probe --overlay
-swift run focus-break-probe --preview-menu
-swift run focus-break-probe --verify-overlay
-swift run focus-break-probe --verify-synthetic-transitions
-swift run focus-break-probe --verify-idle-signal
 ./scripts/build-probe-app.sh
-.build/FocusBreakProbe.app/Contents/MacOS/focus-break-probe --verify-bundled-overlay
-./scripts/prepare-clean-account-test.sh
-./scripts/run-stage0-safe-tests.sh
-./scripts/run-stage0-manual-test.sh fullscreen 90
-./scripts/run-long-resource-test.sh 28800 60
-./scripts/start-long-resource-test-detached.sh 28800 60
-./scripts/run-stage1-visual-tests.sh
-./scripts/run-preview-menu.sh
+open .build/FocusBreakProbe.app
 ```
 
-`--request-accessibility` 只用于显式权限实验，不是默认运行路径。基础降级路径无需该权限即可从 WindowServer 窗口边界和指针位置选择活动屏幕；无法可靠判断全屏时返回 `unknown`，不伪造确定性。
+目前从源码构建，尚未提供签名、公证的正式安装包。内部可执行文件沿用 `focus-break-probe` 名称。登录启动默认关闭，可在“设置 → 通用”中开启；开发版建议先固定 App 存放位置。
 
-普通锁屏没有可靠的公开事件，因此探针不把用户会话切换伪装成锁屏。显示器睡眠以公开 `CGDisplayIsAsleep` 状态查询为真值；系统屏幕通知只作为可选提示。
+## 提醒如何计时
 
-## 项目依据
+1. 默认累计使用 **45 分钟**，可改为 30、60 或 90 分钟。
+2. 无键盘、鼠标输入 **3 分钟**暂停累计；达到 **5 分钟**视为自然休息，取消旧提醒，回来后重新计时。
+3. **开始休息**进入 5 分钟倒计时，结束后开始完整周期；**稍后 5 分钟**按继续使用的时间重试；**跳过或 Esc**开始完整周期。
+4. **没有操作**默认开始完整周期。可选“未处理时，5 分钟后再提醒一次”，最多追加一次。
+5. 全屏或无法确认全屏状态时延后；睡眠、会话不可用和长时间挂起不补发旧提醒。
 
-- [长期计划](LONG_TERM_PLAN.md)
-- [下一步执行计划](docs/NEXT_EXECUTION_PLAN.md)
-- [阶段 1 视觉原型记录](docs/STAGE_1_VISUAL_PROTOTYPE.md)
-- [Stage 1 艺术方向重构](docs/STAGE_1_ART_DIRECTION.md)
-- [Stage 1 试用反馈模板](docs/STAGE_1_FEEDBACK_TEMPLATE.md)
-- [阶段 0 技术可行性记录](docs/STAGE_0_FEASIBILITY.md)
-- [阶段 0 收尾执行计划](docs/STAGE_0_EXECUTION_PLAN.md)
-- [浮层实机截图](artifacts/stage0-overlay.png)
+活动检测只知道“多久没有输入”，不能判断人是否在屏幕前。长时间阅读而不操作也可能被视为暂离；普通锁屏识别受系统公开信号限制。详细边界见 [提醒规则](docs/REMINDER_MVP.md)。
+
+## 图片库
+
+在“设置 → 图片库”选择来源。支持 JPG/JPEG、PNG、HEIC；本地文件夹读取第一层文件，原图不会被修改或删除。系统照片选择器仅导入你选中的照片，不请求访问整个图库。
+
+在线图库每类保留 10 张，共 60 张；每日检查，整批准备成功后才替换旧图，断网保留旧批。手动检查会显示进度、结果或失败原因。导入与收藏独立长期保存，不参与在线批次清理。
+
+图片不由 AI 生成。作者与来源记录见 [内置照片](docs/BUILTIN_PHOTOS.md) 和 [在线图库](docs/ONLINE_RESERVOIR.md)；第三方素材遵循各自许可，用户导入素材不标为许可已核实。
+
+## 隐私与本地数据
+
+- 活动检测读取距最近输入的秒数，不记录按键内容、鼠标轨迹、窗口标题或屏幕画面。
+- 提醒的 Esc 处理仅作用于本应用事件。
+- 照片与偏好保存在本机；在线图片功能会访问相应图片服务。
+- 图片数据目录：`~/Library/Application Support/FocusBreakAssistant/`。构建产物、运行缓存和临时验证输出不提交到仓库。
+
+## 开发导航
+
+```text
+Sources/
+  FocusBreakProbeCore/   计时、布局、轮换及图库策略
+  FocusBreakProbe/       AppKit 界面、系统信号、图片服务与资源
+Tests/                  核心策略及 AppKit 回归测试
+Support/                App 元数据与验收启动入口
+scripts/                构建、预览与实机验证脚本
+docs/                   当前规则、维护指南与历史验收记录
+```
+
+从 [开发与修改指南](CONTRIBUTING.md) 找到要改的模块；从 [文档导航](docs/README.md) 区分现行规则和历史方案。近期变更见 [CHANGELOG](CHANGELOG.md)。
+
+## 验证状态
+
+最近本机回归 **49 项测试通过**。已完成一次 12 小时无人值守运行与在线图库真实跨天更新；其中 45 分钟计时使用注入活动信号，不能代替真人连续使用验收。
+
+真实睡眠唤醒、多屏切换、登录启动和长期日常使用仍需专项实机验证。详见 [验收记录与剩余项目](docs/OVERNIGHT_ACCEPTANCE_20260907.md)。

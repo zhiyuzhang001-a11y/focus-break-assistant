@@ -3,6 +3,9 @@ import ApplicationServices
 import FocusBreakProbeCore
 
 private enum ProbeCommand {
+    case verifyOvernight(seconds: TimeInterval)
+    case reviewReservoir
+    case fillReservoir
     case snapshot
     case snapshotWithoutAccessibility
     case watch(seconds: TimeInterval)
@@ -12,6 +15,9 @@ private enum ProbeCommand {
     case verifyBundledOverlay(textVariant: HorizonTextVariant)
     case renderVisualMatrix(outputDirectory: String)
     case previewMenu
+    case verifyCurtain
+    case verifyPhotoLibrary
+    case verifyAutomaticReminder
     case verifyPreviewMenu
     case verifySyntheticTransitions
     case verifyIdleSignal
@@ -20,8 +26,11 @@ private enum ProbeCommand {
 }
 
 private func parseCommand(_ arguments: [String]) -> ProbeCommand {
-    guard let first = arguments.first else { return .snapshot }
+    guard let first = arguments.first, !first.hasPrefix("-psn_") else { return .previewMenu }
     switch first {
+    case "--verify-overnight": return .verifyOvernight(seconds: arguments.dropFirst().first.flatMap(TimeInterval.init) ?? 43200)
+    case "--review-reservoir": return .reviewReservoir
+    case "--fill-reservoir": return .fillReservoir
     case "--snapshot":
         return .snapshot
     case "--snapshot-no-accessibility":
@@ -33,13 +42,19 @@ private func parseCommand(_ arguments: [String]) -> ProbeCommand {
         let seconds = arguments.dropFirst().first.flatMap(TimeInterval.init) ?? 30
         return .watchContext(seconds: max(1, seconds))
     case "--overlay", "--preview-reminder":
-        return .overlay(textVariant: HorizonTextVariant(rawValue: arguments.dropFirst().first ?? "") ?? .fourteen)
+        return .overlay(textVariant: HorizonTextVariant(rawValue: arguments.dropFirst().first ?? "") ?? .prominent)
     case "--verify-overlay":
-        return .verifyOverlay(textVariant: HorizonTextVariant(rawValue: arguments.dropFirst().first ?? "") ?? .fourteen)
+        return .verifyOverlay(textVariant: HorizonTextVariant(rawValue: arguments.dropFirst().first ?? "") ?? .prominent)
     case "--verify-bundled-overlay":
-        return .verifyBundledOverlay(textVariant: HorizonTextVariant(rawValue: arguments.dropFirst().first ?? "") ?? .fourteen)
+        return .verifyBundledOverlay(textVariant: HorizonTextVariant(rawValue: arguments.dropFirst().first ?? "") ?? .prominent)
     case "--render-visual-matrix":
         return .renderVisualMatrix(outputDirectory: arguments.dropFirst().first ?? "artifacts/stage1-visual-matrix")
+    case "--verify-automatic-reminder":
+        return .verifyAutomaticReminder
+    case "--verify-photo-library":
+        return .verifyPhotoLibrary
+    case "--verify-curtain":
+        return .verifyCurtain
     case "--preview-menu":
         return .previewMenu
     case "--verify-preview-menu":
@@ -87,6 +102,15 @@ private func printJSON<T: Encodable>(_ value: T) {
 @MainActor
 private func run() {
     switch parseCommand(Array(CommandLine.arguments.dropFirst())) {
+    case let .verifyOvernight(seconds):
+        _ = NSApplication.shared
+        NSApp.setActivationPolicy(.prohibited)
+        let output = URL(fileURLWithPath: outputPath ?? "artifacts/overnight-verification.jsonl")
+        let verification = OvernightVerification(output: output, seconds: seconds)
+        do { try verification.start() }
+        catch { FileHandle.standardError.write(Data("Overnight verification failed: \(error)\n".utf8)); exit(1) }
+        withExtendedLifetime(verification) { NSApp.run() }
+
     case .snapshot:
         let collector = MacSignalCollector()
         printJSON(collector.snapshot())
@@ -151,6 +175,8 @@ private func run() {
                     frontmostPIDBefore: frontmostPIDBefore,
                     frontmostPIDAfter: frontmostPIDAfter
                 ))
+                overlay.dismiss()
+                NSApplication.shared.terminate(nil)
             }
         }
         withExtendedLifetime(overlay) {
@@ -174,6 +200,8 @@ private func run() {
                     frontmostPIDBefore: frontmostPIDBefore,
                     frontmostPIDAfter: frontmostPIDAfter
                 ))
+                overlay.dismiss()
+                NSApplication.shared.terminate(nil)
             }
         }
         withExtendedLifetime(overlay) {
@@ -192,11 +220,82 @@ private func run() {
             exit(1)
         }
 
-    case .previewMenu:
+    case .verifyAutomaticReminder:
         let application = NSApplication.shared
         application.setActivationPolicy(.prohibited)
-        let controller = PreviewMenuController()
-        withExtendedLifetime(controller) {
+        let verification = AutomaticReminderVerification()
+        verification.start()
+        withExtendedLifetime(verification) { application.run() }
+
+    case .verifyPhotoLibrary:
+        do {
+            let results = try PhotoLibrary.verifyLibrary()
+            printJSON(results)
+            if results.values.contains(false) { exit(1) }
+        } catch {
+            FileHandle.standardError.write(Data("Photo library verification failed: \(error)\n".utf8))
+            exit(1)
+        }
+
+    case .verifyCurtain:
+        let application = NSApplication.shared
+        application.setActivationPolicy(.prohibited)
+        let overlay = HorizonOverlay(screen: NSScreen.main ?? NSScreen.screens[0])
+        overlay.show(terminateApplicationOnCompletion: false)
+        let started = ProcessInfo.processInfo.systemUptime
+        Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { _ in
+            MainActor.assumeIsolated {
+                var sample = overlay.curtainSample()
+                let elapsed = ProcessInfo.processInfo.systemUptime - started
+                sample["elapsedSeconds"] = elapsed
+                printJSON(sample)
+                if elapsed >= 3.5 {
+                    application.terminate(nil)
+                }
+            }
+        }
+        withExtendedLifetime(overlay) { application.run() }
+
+    case .reviewReservoir:
+        do { printJSON(try renderReservoirReview()) }
+        catch { FileHandle.standardError.write(Data("Review failed: \(error)\n".utf8)); exit(1) }
+    case .fillReservoir:
+        NSApplication.shared.setActivationPolicy(.prohibited)
+        Task { @MainActor in
+            var results: [String: Int] = [:]
+            var failed = false
+            for category in ImageCategory.allCases {
+                if OnlineReservoir.shared.store.batch(category) == nil || (CommandLine.arguments.contains("--replace") && CommandLine.arguments.contains(category.rawValue)) {
+                    FileHandle.standardError.write(Data("Downloading \(category.rawValue)…\n".utf8))
+                    do { try await OnlineReservoir.shared.update(category) }
+                    catch { failed = true; FileHandle.standardError.write(Data("\(category.rawValue): \(error)\n".utf8)) }
+                }
+                results[category.rawValue] = OnlineReservoir.shared.files(category).count
+                FileHandle.standardError.write(Data("\(category.rawValue): \(results[category.rawValue]!)/10\n".utf8))
+            }
+            printJSON(results)
+            exit(!failed && results.values.allSatisfy { $0 == 10 } ? 0 : 1)
+        }
+        NSApplication.shared.run()
+
+    case .previewMenu:
+        let instance = ApplicationInstance()
+        do { guard try instance.acquire() else { return } }
+        catch {
+            FileHandle.standardError.write(Data("Unable to acquire application lock: \(error)\n".utf8))
+            exit(1)
+        }
+        let application = NSApplication.shared
+        application.setActivationPolicy(.prohibited)
+        let controller = PreviewMenuController(automaticReminders: true)
+        if CommandLine.arguments.contains("--settings") { DispatchQueue.main.async { controller.openSettings() } }
+        if CommandLine.arguments.contains("--choose-categories") {
+            DispatchQueue.main.async { controller.chooseCategories() }
+        }
+        if CommandLine.arguments.contains("--choose-system-photos") {
+            DispatchQueue.main.async { controller.chooseSystemPhotos() }
+        }
+        withExtendedLifetime((instance, controller)) {
             application.run()
         }
 
@@ -276,11 +375,15 @@ private func run() {
           --snapshot-no-accessibility Verify the no-Accessibility fallback path
           --watch [seconds]           Print cheap activity snapshots and lifecycle events
           --watch-context [seconds]   Print full display/window context every second
-          --overlay [13|14]           Preview the non-activating, click-through overlay
-          --preview-reminder [13|14]  User-facing alias for one reminder preview
-          --verify-overlay [13|14]    Print runtime overlay focus and input behavior
+          --overlay [32|36]           Preview the non-activating, click-through overlay
+          --preview-reminder [32|36]  User-facing alias for one reminder preview
+          --verify-overlay [32|36]    Print runtime overlay focus and input behavior
           --verify-bundled-overlay    Verify LSUIElement bundle behavior without policy override
-          --render-visual-matrix DIR  Render 13/14 pt previews across five visual contexts
+          --render-visual-matrix DIR  Render 32/36 pt previews across five visual contexts
+          --verify-overnight [seconds] Log actual system activity and a separate injected 45-minute wall-clock run
+          --verify-automatic-reminder Verify real timer delivery with a temporary short interval
+          --verify-photo-library     Verify formats, rotation, folder updates and fallback
+          --verify-curtain           Sample the live curtain mask over 2.8 seconds
           --preview-menu              Run a preview-only menu bar app
           --verify-preview-menu       Verify the menu item and its overlay without user input
           --verify-synthetic-transitions

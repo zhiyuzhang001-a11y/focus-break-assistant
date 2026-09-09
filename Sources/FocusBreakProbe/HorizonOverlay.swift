@@ -2,52 +2,69 @@ import AppKit
 import FocusBreakProbeCore
 
 enum HorizonTextVariant: String, CaseIterable {
-    case thirteen = "13"
-    case fourteen = "14"
+    case standard = "32"
+    case prominent = "36"
 
     var pointSize: CGFloat {
         switch self {
-        case .thirteen: 13
-        case .fourteen: 14
+        case .standard: 32
+        case .prominent: 36
         }
     }
 }
 
 private enum HorizonStyle {
-    static let size = NSSize(width: 520, height: 128)
+    static func frame(in visible: NSRect) -> NSRect {
+        let frame = ResponsiveLayoutPolicy.frame(in: RectSnapshot(
+            x: visible.origin.x, y: visible.origin.y, width: visible.width, height: visible.height))
+        return NSRect(x: frame.x, y: frame.y, width: frame.width, height: frame.height)
+    }
+
     static let cornerRadius: CGFloat = 24
 }
 
 @MainActor
 final class HorizonPanel: NSPanel {
-    override var canBecomeKey: Bool { false }
+    var onEscape: (() -> Void)?
+    override func cancelOperation(_ sender: Any?) { onEscape?() }
+    var acceptsInteraction = false
+    override var canBecomeKey: Bool { acceptsInteraction }
     override var canBecomeMain: Bool { false }
 }
 
 @MainActor
-final class HorizonOverlay {
+final class HorizonOverlay: NSObject {
+    private var completion: (@MainActor () -> Void)?
+    private var breakAction: (() -> Void)?
+    private var favoriteButton: NSButton?
+    private let selectedPhoto: LibraryPhoto?
+    private var snoozeAction: (() -> Void)?
+    private var skipAction: (() -> Void)?
+    private var escapeMonitor: Any?
+    private var isDismissed = false
     private let panel: HorizonPanel
+    private let destinationFrame: NSRect
+    private let curtainMask = CALayer()
     private let textVariant: HorizonTextVariant
 
-    init(screen: NSScreen, textVariant: HorizonTextVariant = .fourteen) {
+    init(screen: NSScreen, textVariant: HorizonTextVariant = .prominent, selectedPhoto: LibraryPhoto? = nil) {
         self.textVariant = textVariant
-        let size = HorizonStyle.size
-        let visible = RectSnapshot(
-            x: Double(screen.visibleFrame.origin.x),
-            y: Double(screen.visibleFrame.origin.y),
-            width: Double(screen.visibleFrame.width),
-            height: Double(screen.visibleFrame.height)
-        )
-        let origin = GeometryPolicy.overlayOrigin(
-            size: (Double(size.width), Double(size.height)),
-            visibleFrame: visible
-        )
+        let photo = selectedPhoto ?? PhotoLibrary.shared.nextPhoto()
+        self.selectedPhoto = photo
+        let visible = screen.visibleFrame
+        let fitted = ResponsiveLayoutPolicy.imageFrame(
+            in: RectSnapshot(x: visible.minX, y: visible.minY, width: visible.width, height: visible.height),
+            sourceWidth: Double(photo?.image.size.width ?? 0), sourceHeight: Double(photo?.image.size.height ?? 0))
+        let frame = NSRect(x: fitted.x, y: fitted.y, width: fitted.width, height: fitted.height)
+        destinationFrame = frame
+        let size = frame.size
         panel = HorizonPanel(
-            contentRect: NSRect(x: origin.x, y: origin.y, width: size.width, height: size.height),
+            contentRect: frame,
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
+        super.init()
         panel.level = .floating
         panel.isOpaque = false
         panel.backgroundColor = .clear
@@ -57,47 +74,168 @@ final class HorizonOverlay {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.contentView = HorizonView(
             frame: NSRect(origin: .zero, size: size),
-            textVariant: textVariant
+            textVariant: textVariant,
+            selectedPhoto: photo, allowFallbackArtwork: false
         )
     }
 
+    var onTimeout: (@MainActor () -> Void)?
+
     func show(
-        fadeIn: TimeInterval = 0.8,
+        fadeIn: TimeInterval = 2.8,
         hold: TimeInterval = 5.0,
         fadeOut: TimeInterval = 0.8,
         terminateApplicationOnCompletion: Bool = true,
         onDismiss: (@MainActor () -> Void)? = nil
     ) {
-        panel.alphaValue = 0
-        panel.orderFrontRegardless()
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = OverlayAccessibilityPolicy.animationDuration(
-                requested: fadeIn,
-                options: NSWorkspace.shared.displayAccessibilityOptions
-            )
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            panel.animator().alphaValue = 1
-        } completionHandler: { [weak self] in
-            guard let self else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + hold) {
-                NSAnimationContext.runAnimationGroup { context in
-                    context.duration = OverlayAccessibilityPolicy.animationDuration(
-                        requested: fadeOut,
-                        options: NSWorkspace.shared.displayAccessibilityOptions
-                    )
-                    context.timingFunction = CAMediaTimingFunction(name: .easeIn)
-                    self.panel.animator().alphaValue = 0
-                } completionHandler: {
-                    Task { @MainActor in
-                        self.panel.orderOut(nil)
-                        onDismiss?()
-                        if terminateApplicationOnCompletion {
-                            NSApplication.shared.terminate(nil)
-                        }
+        completion = onDismiss
+        let options = NSWorkspace.shared.displayAccessibilityOptions
+        let duration = OverlayAccessibilityPolicy.animationDuration(requested: fadeIn, options: options)
+        panel.setFrame(destinationFrame, display: false)
+        panel.alphaValue = options.reduceMotion ? 0 : 1
+        if let view = panel.contentView {
+            view.wantsLayer = true
+            view.displayIfNeeded()
+            if let layer = view.layer {
+                let top: CGFloat = layer.isGeometryFlipped ? 0 : 1
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                curtainMask.backgroundColor = NSColor.black.cgColor
+                curtainMask.anchorPoint = CGPoint(x: 0.5, y: top)
+                curtainMask.bounds = CGRect(origin: .zero, size: view.bounds.size)
+                curtainMask.position = CGPoint(x: view.bounds.midX, y: view.bounds.height * top)
+                layer.mask = curtainMask
+                CATransaction.commit()
+            }
+        }
+        if panel.acceptsInteraction { panel.makeKeyAndOrderFront(nil) }
+        else { panel.orderFrontRegardless() }
+        if options.reduceMotion {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = duration
+                panel.animator().alphaValue = 1
+            }
+        } else {
+            // The image stays fixed. Only the mask's bottom edge descends.
+            let reveal = CABasicAnimation(keyPath: "bounds.size.height")
+            reveal.fromValue = 0
+            reveal.toValue = destinationFrame.height
+            reveal.duration = duration
+            reveal.beginTime = curtainMask.convertTime(CACurrentMediaTime(), from: nil)
+            reveal.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            curtainMask.add(reveal, forKey: "curtainReveal")
+            CATransaction.flush()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration + hold) { [weak self] in
+            guard let self, !self.isDismissed else { return }
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = OverlayAccessibilityPolicy.animationDuration(
+                    requested: fadeOut,
+                    options: NSWorkspace.shared.displayAccessibilityOptions
+                )
+                context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+                self.panel.animator().alphaValue = 0
+            } completionHandler: {
+                Task { @MainActor in
+                    guard !self.isDismissed else { return }
+                    self.onTimeout?()
+                    self.dismiss()
+                    if terminateApplicationOnCompletion {
+                        NSApplication.shared.terminate(nil)
                     }
                 }
             }
         }
+    }
+
+    func dismiss() {
+        guard !isDismissed else { return }
+        isDismissed = true
+        if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor); self.escapeMonitor = nil }
+        curtainMask.removeAllAnimations()
+        panel.orderOut(nil)
+        let callback = completion; completion = nil
+        callback?()
+    }
+
+    func addControls(snooze: (() -> Void)?, skip: (() -> Void)?, beginBreak: (() -> Void)? = nil) {
+        snoozeAction = snooze; skipAction = skip; breakAction = beginBreak
+        panel.ignoresMouseEvents = false
+        panel.acceptsInteraction = true
+        panel.onEscape = { [weak self] in self?.dismiss() }
+        let compact = destinationFrame.width < 540 || destinationFrame.height < 270
+        let actions: [(String, Selector)] = (beginBreak == nil ? [] : [("开始休息", #selector(startBreak))]) +
+            (snooze == nil ? [] : [("稍后 5 分钟", #selector(snoozeReminder)), ("跳过本次", #selector(skipReminder))]) +
+            [("收起 · Esc", #selector(closeReminder))]
+        let feedback: [(String, Selector)] = selectedPhoto?.fileURL == nil ? [] :
+            [(PhotoCuration.shared.isFavorite(selectedPhoto!) ? "已收藏" : "收藏", #selector(favoritePhoto)),
+             ("不要再显示这张", #selector(blockPhoto))]
+        let stack = NSStackView(); stack.orientation = .vertical; stack.spacing = 8
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        if compact {
+            let popup = NSPopUpButton(frame: .zero, pullsDown: true)
+            popup.addItem(withTitle: "提醒操作")
+            for (title, action) in actions + feedback {
+                popup.menu?.addItem(withTitle: title, action: action, keyEquivalent: "")
+                popup.menu?.items.last?.target = self
+            }
+            stack.addArrangedSubview(popup)
+        } else {
+            for row in [actions, feedback] where !row.isEmpty {
+                let group = NSStackView(); group.orientation = .horizontal; group.spacing = 12
+                for (title, action) in row {
+                    let button = NSButton(title: title, target: self, action: action)
+                    if action == #selector(favoritePhoto) { favoriteButton = button }
+                    group.addArrangedSubview(button)
+                }
+                stack.addArrangedSubview(group)
+            }
+        }
+        if let view = panel.contentView {
+            (view as? HorizonView)?.controlInset = compact ? 48 : 88
+            view.addSubview(stack)
+            NSLayoutConstraint.activate([
+                stack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                stack.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -12)
+            ])
+        }
+        escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.keyCode == 53, let self, event.window === self.panel { self.dismiss(); return nil }
+            return event
+        }
+    }
+
+    private func feedback(_ action: () throws -> Void) {
+        do { try action() }
+        catch {
+            let alert = NSAlert(error: error)
+            alert.messageText = "未能保存图片偏好"
+            alert.informativeText = "原图未被改动。请检查本机可用空间和收藏目录后重试。"
+            alert.beginSheetModal(for: panel)
+        }
+    }
+    @objc private func favoritePhoto() {
+        guard let selectedPhoto else { return }
+        feedback { try PhotoCuration.shared.favorite(selectedPhoto); favoriteButton?.title = "已收藏" }
+    }
+    @objc private func blockPhoto() {
+        guard let selectedPhoto else { return }
+        feedback { try PhotoCuration.shared.block(selectedPhoto); dismiss() }
+    }
+    @objc private func startBreak() { breakAction?(); dismiss() }
+    @objc private func closeReminder() { dismiss() }
+    @objc private func snoozeReminder() { snoozeAction?(); dismiss() }
+    @objc private func skipReminder() { skipAction?(); dismiss() }
+
+    func curtainSample() -> [String: Double] {
+        let visibleMask = curtainMask.presentation() ?? curtainMask
+        return [
+            "visibleHeight": Double(visibleMask.bounds.height),
+            "fullHeight": Double(destinationFrame.height),
+            "maskTop": Double(visibleMask.position.y),
+            "windowY": Double(panel.frame.origin.y),
+            "windowHeight": Double(panel.frame.height)
+        ]
     }
 
     func verification(
@@ -122,7 +260,7 @@ final class HorizonOverlay {
             increaseContrastEnabled: workspace.accessibilityDisplayShouldIncreaseContrast,
             reduceTransparencyEnabled: workspace.accessibilityDisplayShouldReduceTransparency,
             effectiveAppearance: appearance,
-            textPointSize: Double(textVariant.pointSize)
+            textPointSize: Double((panel.contentView as? HorizonView)?.effectivePointSize ?? textVariant.pointSize)
         )
     }
 
@@ -132,10 +270,18 @@ final class HorizonOverlay {
             withIntermediateDirectories: true
         )
         var outputs: [URL] = []
-        for environment in HorizonPreviewEnvironment.allCases {
+        let scenarios = HorizonPreviewEnvironment.allCases.map {
+            ($0.rawValue, $0, NSSize(width: 1440, height: 900))
+        } + [
+            ("small-screen", .lightDesktop, NSSize(width: 800, height: 600)),
+            ("portrait-screen", .lightDesktop, NSSize(width: 900, height: 1600)),
+            ("ultrawide-screen", .lightDesktop, NSSize(width: 2560, height: 1080)),
+            ("large-screen", .lightDesktop, NSSize(width: 2560, height: 1440))
+        ]
+        for (name, environment, screenSize) in scenarios {
             for variant in HorizonTextVariant.allCases {
                 let canvas = HorizonPreviewCanvas(
-                    frame: NSRect(x: 0, y: 0, width: 1440, height: 900),
+                    frame: NSRect(origin: .zero, size: screenSize),
                     environment: environment,
                     textVariant: variant
                 )
@@ -148,7 +294,7 @@ final class HorizonOverlay {
                     throw HorizonPreviewError.couldNotEncodePNG
                 }
                 let url = outputDirectory
-                    .appendingPathComponent("\(environment.rawValue)-\(variant.rawValue)pt.png")
+                    .appendingPathComponent("\(name)-\(variant.rawValue)pt.png")
                 try png.write(to: url, options: .atomic)
                 outputs.append(url)
             }
@@ -160,13 +306,30 @@ final class HorizonOverlay {
 @MainActor
 private final class HorizonView: NSView {
     private let textVariant: HorizonTextVariant
-    private let lightImage = HorizonView.loadImage(named: "AtmosphereLight")
-    private let darkImage = HorizonView.loadImage(named: "AtmosphereDark")
+    private static let photo: PhotoPlacement = {
+        guard let url = Bundle.module.url(forResource: "Photo", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let photo = try? JSONDecoder().decode(PhotoPlacement.self, from: data) else {
+            return PhotoPlacement(resourceName: "Seascape", focalX: 0.5, focalY: 0.52)
+        }
+        return photo
+    }()
+    private let artwork: NSImage?
+    private let focalX: Double
+    private let focalY: Double
+    var controlInset: CGFloat = 0
+
+    var effectivePointSize: CGFloat {
+        ResponsiveLayoutPolicy.fontSize(base: textVariant.pointSize, width: bounds.width, height: bounds.height)
+    }
 
     override var isFlipped: Bool { true }
 
-    init(frame frameRect: NSRect, textVariant: HorizonTextVariant = .fourteen) {
+    init(frame frameRect: NSRect, textVariant: HorizonTextVariant = .prominent, selectedPhoto: LibraryPhoto? = nil, allowFallbackArtwork: Bool = true) {
         self.textVariant = textVariant
+        artwork = selectedPhoto?.image ?? (allowFallbackArtwork ? Self.loadImage(named: Self.photo.resourceName) : nil)
+        focalX = selectedPhoto?.focalX ?? Self.photo.focalX
+        focalY = selectedPhoto?.focalY ?? Self.photo.focalY
         super.init(frame: frameRect)
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
@@ -177,7 +340,10 @@ private final class HorizonView: NSView {
     }
 
     required init?(coder: NSCoder) {
-        textVariant = .fourteen
+        textVariant = .prominent
+        artwork = Self.loadImage(named: Self.photo.resourceName)
+        focalX = Self.photo.focalX
+        focalY = Self.photo.focalY
         super.init(coder: coder)
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
@@ -229,11 +395,14 @@ private final class HorizonView: NSView {
         fallbackBackground.setFill()
         surface.fill()
 
-        if !displayOptions.reduceTransparency,
-           let image = isDark ? darkImage : lightImage {
+        if let image = artwork {
+            let fitted = ResponsiveLayoutPolicy.photoDestination(
+                sourceWidth: image.size.width, sourceHeight: image.size.height,
+                targetWidth: bounds.width, targetHeight: bounds.height)
+            let destination = NSRect(x: fitted.x, y: fitted.y, width: fitted.width, height: fitted.height)
             image.draw(
-                in: bounds,
-                from: image.sourceRect(aspectFilling: bounds.size),
+                in: destination,
+                from: image.sourceRect(aspectFilling: destination.size, focalX: focalX, focalY: focalY),
                 operation: .sourceOver,
                 fraction: OverlayAccessibilityPolicy.surfaceAlpha(defaultAlpha: 0.94, options: displayOptions),
                 respectFlipped: true,
@@ -254,42 +423,58 @@ private final class HorizonView: NSView {
         }
 
         let paragraph = NSMutableParagraphStyle()
-        paragraph.alignment = .left
-        paragraph.lineSpacing = 5
+        paragraph.alignment = .center
+        paragraph.lineSpacing = effectivePointSize / 3
+        let textShadow = NSShadow()
+        textShadow.shadowColor = NSColor.black.withAlphaComponent(0.5)
+        textShadow.shadowBlurRadius = 3
+        textShadow.shadowOffset = NSSize(width: 0, height: -1)
         let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: textVariant.pointSize, weight: .medium),
-            .foregroundColor: textColor,
+            .font: NSFont.systemFont(ofSize: effectivePointSize, weight: .semibold),
+            .foregroundColor: NSColor.white,
+            .shadow: textShadow,
             .paragraphStyle: paragraph
         ]
-        let message = "给下一段留一点余白。\n让目光去远处停一会儿。"
-        message.draw(
-            in: NSRect(x: 40, y: 38, width: bounds.width - 80, height: 58),
-            withAttributes: attributes
-        )
+        let presentation = ReminderPresentation()
+        let message = bounds.height - controlInset < effectivePointSize * 4 ? "歇一会儿" : presentation.message
+        let textWidth = min(max(1, bounds.width - 48), effectivePointSize * 20)
+        let textHeight = ceil((message as NSString).boundingRect(
+            with: NSSize(width: textWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: attributes
+        ).height)
+        let usableHeight = max(textHeight, bounds.height - controlInset - 16)
+        let y = presentation.position == .bottom ? usableHeight - textHeight : (usableHeight - textHeight) / 2
+        let textRect = NSRect(x: bounds.midX - textWidth / 2,
+                              y: max(8, y),
+                              width: textWidth, height: textHeight)
+        (message as NSString).draw(with: textRect,
+                                  options: [.usesLineFragmentOrigin, .usesFontLeading],
+                                  attributes: attributes)
     }
 
     private static func loadImage(named name: String) -> NSImage? {
-        guard let url = Bundle.module.url(forResource: name, withExtension: "png") else {
+        guard let url = Bundle.module.url(forResource: name, withExtension: "jpg") else {
             return nil
         }
         return NSImage(contentsOf: url)
     }
 }
 
+private struct PhotoPlacement: Decodable {
+    let resourceName: String
+    let focalX: Double
+    let focalY: Double
+}
+
 private extension NSImage {
-    func sourceRect(aspectFilling destinationSize: NSSize) -> NSRect {
-        guard size.width > 0, size.height > 0,
-              destinationSize.width > 0, destinationSize.height > 0 else {
-            return NSRect(origin: .zero, size: size)
-        }
-        let sourceAspect = size.width / size.height
-        let destinationAspect = destinationSize.width / destinationSize.height
-        if sourceAspect > destinationAspect {
-            let width = size.height * destinationAspect
-            return NSRect(x: (size.width - width) / 2, y: 0, width: width, height: size.height)
-        }
-        let height = size.width / destinationAspect
-        return NSRect(x: 0, y: (size.height - height) / 2, width: size.width, height: height)
+    func sourceRect(aspectFilling destinationSize: NSSize, focalX: Double, focalY: Double) -> NSRect {
+        let crop = ResponsiveLayoutPolicy.crop(
+            sourceWidth: size.width, sourceHeight: size.height,
+            targetWidth: destinationSize.width, targetHeight: destinationSize.height,
+            focalX: focalX, focalY: focalY)
+        return NSRect(x: crop.x, y: size.height - crop.y - crop.height,
+                      width: crop.width, height: crop.height)
     }
 }
 
@@ -322,13 +507,9 @@ private final class HorizonPreviewCanvas: NSView {
         super.init(frame: frameRect)
         appearance = NSAppearance(named: environment.appearanceName)
 
-        let overlaySize = HorizonStyle.size
-        let origin = GeometryPolicy.overlayOrigin(
-            size: (Double(overlaySize.width), Double(overlaySize.height)),
-            visibleFrame: RectSnapshot(x: 0, y: 25, width: 1440, height: 850)
-        )
+        let overlayFrame = HorizonStyle.frame(in: NSRect(x: 0, y: 25, width: bounds.width, height: bounds.height - 50))
         addSubview(HorizonView(
-            frame: NSRect(x: origin.x, y: origin.y, width: overlaySize.width, height: overlaySize.height),
+            frame: overlayFrame,
             textVariant: textVariant
         ))
     }

@@ -1,8 +1,10 @@
+> 2026-09-06 更新：用户已授权并完成自动提醒第一版开发；当前范围和状态以 docs/REMINDER_MVP.md 与 docs/NEXT_EXECUTION_PLAN.md 为准，下文旧的“当前优先级”保留作历史记录。
+
 # Focus Break Assistant 长期计划
 
 > 状态：已采纳，作为项目长期推进依据  
 > 建立日期：2026-08-30  
-> 产品设计基线：[focus-break-assistant-design.md](/Users/zhiyu/Documents/Codex/2026-08-29/referenced-chatgpt-conversation-this-is-an/outputs/focus-break-assistant-design.md)
+> 产品设计基线：早期本地设计草案；当前行为与实现入口见 [README](README.md) 和 [开发指南](CONTRIBUTING.md)。
 
 ## 1. 长期目标
 

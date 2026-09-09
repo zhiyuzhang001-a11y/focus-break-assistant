@@ -1,0 +1,73 @@
+[
+  {
+    "resourceName": "AlpineLake",
+    "title": "雪山静湖",
+    "photographer": "Bri Schneiter",
+    "source": "https://www.pexels.com/photo/calm-body-of-lake-between-mountains-346529/",
+    "download": "https://images.pexels.com/photos/346529/pexels-photo-346529.jpeg?auto=compress&cs=tinysrgb&w=2560",
+    "license": "https://www.pexels.com/license/",
+    "downloaded": "2026-09-06",
+    "sha256": "68ef03b8e5e4c841a897f77831978ecb8f37ddf2fce5c9767abb6649f5abd878",
+    "focalX": 0.5,
+    "focalY": 0.5
+  },
+  {
+    "resourceName": "ValleyReflection",
+    "title": "山谷倒影",
+    "photographer": "Manfred Neumair",
+    "source": "https://www.pexels.com/photo/beautiful-landscape-of-mountains-reflecting-in-a-still-lake-7204540/",
+    "download": "https://images.pexels.com/photos/7204540/pexels-photo-7204540.jpeg?auto=compress&cs=tinysrgb&w=2560",
+    "license": "https://www.pexels.com/license/",
+    "downloaded": "2026-09-06",
+    "sha256": "7dda461d8ffc61492a9c9e571658d1001671de8a4b4bc1447524110a91a7d33c",
+    "focalX": 0.55,
+    "focalY": 0.58
+  },
+  {
+    "resourceName": "GreenHills",
+    "title": "林海远山",
+    "photographer": "Mark Stebnicki",
+    "source": "https://www.pexels.com/photo/landscape-of-green-hills-17146221/",
+    "download": "https://images.pexels.com/photos/17146221/pexels-photo-17146221.jpeg?auto=compress&cs=tinysrgb&w=2560",
+    "license": "https://www.pexels.com/license/",
+    "downloaded": "2026-09-06",
+    "sha256": "a148a68cc0dbf8e0250b429e03af541e4fd42249d6a847e806f73f13dfaffe18",
+    "focalX": 0.5,
+    "focalY": 0.56
+  },
+  {
+    "resourceName": "RollingMeadow",
+    "title": "柔光草坡",
+    "photographer": "Mitchell Henderson",
+    "source": "https://www.pexels.com/photo/scenic-landscape-of-green-hills-15947088/",
+    "download": "https://images.pexels.com/photos/15947088/pexels-photo-15947088.jpeg?auto=compress&cs=tinysrgb&w=2560",
+    "license": "https://www.pexels.com/license/",
+    "downloaded": "2026-09-06",
+    "sha256": "3e53e8f9896727baa95a1e25e8c8503c35ab3d9b6fe58f59c8cd8aa012ab5e11",
+    "focalX": 0.5,
+    "focalY": 0.58
+  },
+  {
+    "resourceName": "RockyCoast",
+    "title": "开阔海岸",
+    "photographer": "Petra Nesti",
+    "source": "https://www.pexels.com/photo/sea-landscape-beach-sand-17011301/",
+    "download": "https://images.pexels.com/photos/17011301/pexels-photo-17011301.jpeg?auto=compress&cs=tinysrgb&w=2560",
+    "license": "https://www.pexels.com/license/",
+    "downloaded": "2026-09-06",
+    "sha256": "7927eb337bfcee82afc1c013190228cdb5627ff81f3491b492f362272fefe54b",
+    "focalX": 0.5,
+    "focalY": 0.46
+  },
+  {
+    "resourceName": "Seascape",
+    "title": "海上日出",
+    "photographer": "Rıdvan Gülcan",
+    "source": "https://www.pexels.com/photo/seascape-at-sunrise-25325735/",
+    "license": "https://www.pexels.com/license/",
+    "downloaded": "2026-09-06",
+    "sha256": "90413c340a128ad5c1a799cf445356e7064d7c5a0568ee627aade44f90e6fcb5",
+    "focalX": 0.5,
+    "focalY": 0.52
+  }
+]
