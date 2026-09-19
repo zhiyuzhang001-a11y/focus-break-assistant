@@ -495,6 +495,10 @@ final class PreviewMenuController: NSObject, NSMenuDelegate {
     }
 
     private static func menuBarImage() -> NSImage {
+        if let image = NSImage(systemSymbolName: "timer", accessibilityDescription: "休息提醒") {
+            image.isTemplate = true
+            return image
+        }
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
             NSColor.labelColor.setStroke()
             let path = NSBezierPath()

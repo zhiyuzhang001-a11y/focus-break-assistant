@@ -1,5 +1,11 @@
 # 当前照片与展开效果
 
+## 应用图标
+
+- 文件：`Support/FocusBreakAssistant-icon-source.png` 与由其按 macOS 图标规范缩放导出的 `Support/FocusBreakAssistant.icns`。
+- 来源：用户于 2026-09-19 在本项目对话中提供。
+- 许可：用户提供素材，许可状态未核实；仅作为本项目应用图标使用。未使用 AI 生成、重绘或生成式编辑。
+
 - 照片：Seascape at Sunrise，Rıdvan Gülcan / Pexels。
 - 来源：https://www.pexels.com/photo/seascape-at-sunrise-25325735/
 - 下载：https://images.pexels.com/photos/25325735/pexels-photo-25325735.jpeg?auto=compress&cs=tinysrgb&w=2400
