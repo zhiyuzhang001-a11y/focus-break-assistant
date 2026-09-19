@@ -28,7 +28,7 @@ swift test
 ./scripts/build-probe-app.sh
 ```
 
-构建脚本会将 App 安装为 `/Applications/Focus Break Assistant.app`，替换该位置的旧版本并自动启动。因此 Spotlight 可直接搜索“Focus Break Assistant”，后续更新也不会在“应用程序”中留下多个重名副本。内部可执行文件仍沿用 `focus-break-probe` 名称。当前是本机临时签名版本，尚未提供公证的正式安装包。登录启动默认关闭，可在“设置 → 通用”中开启。
+构建脚本会生成标准 `.app` 和可拖入“应用程序”的 DMG，将 App 安装为 `/Applications/Focus Break Assistant.app`，替换旧版本并自动启动。DMG 位于 `.build/package/Focus-Break-Assistant-<版本>-macos-<架构>.dmg`；staging App 会在完成后删除，因此 Spotlight 只会发现正式安装的一份。内部可执行文件仍沿用 `focus-break-probe` 名称。当前使用本机临时签名，尚未经过 Apple Developer ID 签名和公证。登录启动默认关闭，可在“设置 → 通用”中开启。
 
 ## 提醒如何计时
 

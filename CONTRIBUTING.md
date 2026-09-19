@@ -2,7 +2,7 @@
 
 ## 本地工作流
 
-使用 macOS 14+、Swift 6.2。首次运行 `swift test`，再用 `./scripts/build-probe-app.sh` 打包。脚本将新构建暂存、签名验证后安装到 `/Applications/Focus Break Assistant.app`，替换旧版本并重启该 App；不要手动制作“副本”或改名安装包。构建输出仍在 `.build/`，仅作中间产物。
+使用 macOS 14+、Swift 6.2。首次运行 `swift test`，再用 `./scripts/build-probe-app.sh` 打包。脚本从空目录构建、生成 `.icns`、签名、运行快照检查、制作并校验 DMG，然后安装到 `/Applications/Focus Break Assistant.app` 并重启。staging App 与临时 iconset 会删除，只保留 DMG 和正式安装；不要手动制作“副本”或改名安装包。
 
 修改前创建分支，例如 `git switch -c codex/improve-reminder`。一个提交聚焦一项行为；提交说明包含改变原因和验证结果。不要提交用户图片、绝对机器路径、下载缓存、进程 ID 或本地设置。
 
@@ -45,4 +45,4 @@ git diff --check
 
 ## 安装规则
 
-正式本机安装路径固定为 `/Applications/Focus Break Assistant.app`。更新必须通过 `scripts/build-probe-app.sh` 覆盖这个路径；脚本在切换前验证临时 App，若安装失败会恢复旧版本。不要把同一 App 复制到其他“应用程序”位置或以“副本”命名保存。
+正式本机安装路径固定为 `/Applications/Focus Break Assistant.app`。更新必须通过 `scripts/build-probe-app.sh` 覆盖这个路径；脚本在切换前验证临时 App，若安装失败会恢复旧版本。可分发产物是 `.build/package/` 下的 DMG；该目录不保留另一个 `.app`。不要把同一 App 复制到其他“应用程序”位置或以“副本”命名保存。
