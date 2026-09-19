@@ -2,7 +2,7 @@
 
 ## 应用图标
 
-- 文件：`Support/FocusBreakAssistant-icon-source.png`、由其按 macOS 图标规范缩放导出的 `Support/FocusBreakAssistant.icns`，以及 `Support/Assets.xcassets/AppIcon.appiconset`。构建时生成现代 `Assets.car`，同时保留 `.icns` 兼容路径。
+- 文件：`Support/FocusBreakAssistant-icon-source.png` 与 `Support/Assets.xcassets/AppIcon.appiconset`。构建时由 `actool` 同时生成现代 `Assets.car` 和兼容用的 `AppIcon.icns`，两条图标解析路径统一使用 `AppIcon` 名称。
 - 来源：用户于 2026-09-19 在本项目对话中提供。
 - 许可：用户提供素材，许可状态未核实；仅作为本项目应用图标使用。未使用 AI 生成、重绘或生成式编辑。
 

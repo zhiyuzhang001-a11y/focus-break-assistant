@@ -16,13 +16,13 @@ install_committed=false
 cd "$project_root"
 swift build -c release
 
+rm -rf "$bundle_path"
 mkdir -p "$contents_path/MacOS"
 mkdir -p "$contents_path/Resources"
 cp "$project_root/.build/release/focus-break-probe" "$contents_path/MacOS/focus-break-probe"
 rm -rf "$contents_path/Resources/$resource_bundle_name"
 cp -R "$project_root/.build/release/$resource_bundle_name" "$contents_path/Resources/$resource_bundle_name"
 cp "$project_root/Support/FocusBreakProbe-Info.plist" "$contents_path/Info.plist"
-cp "$project_root/Support/FocusBreakAssistant.icns" "$contents_path/Resources/FocusBreakAssistant.icns"
 /usr/bin/xcrun actool "$project_root/Support/Assets.xcassets" \
     --compile "$contents_path/Resources" \
     --platform macosx \

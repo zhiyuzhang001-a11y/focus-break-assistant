@@ -10,6 +10,10 @@
 
 - 增加标准 macOS App Icon asset catalog 和 `CFBundleIconName`，修复 Spotlight 显示通用蓝色网格占位图标的问题。
 
+### 0.1.3 · 2026-09-19
+
+- 统一传统与现代图标字段为 `AppIcon`，并在构建前清理旧 App 包，防止残留图标资源导致 Spotlight 回退到占位符。
+
 ### 日常提醒
 
 - 设置整理为提醒、图片库、通用三页；菜单显示剩余时间、暂停及延后原因。
