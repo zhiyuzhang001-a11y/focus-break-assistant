@@ -23,6 +23,12 @@ rm -rf "$contents_path/Resources/$resource_bundle_name"
 cp -R "$project_root/.build/release/$resource_bundle_name" "$contents_path/Resources/$resource_bundle_name"
 cp "$project_root/Support/FocusBreakProbe-Info.plist" "$contents_path/Info.plist"
 cp "$project_root/Support/FocusBreakAssistant.icns" "$contents_path/Resources/FocusBreakAssistant.icns"
+/usr/bin/xcrun actool "$project_root/Support/Assets.xcassets" \
+    --compile "$contents_path/Resources" \
+    --platform macosx \
+    --minimum-deployment-target 14.0 \
+    --app-icon AppIcon \
+    --output-partial-info-plist "$project_root/.build/AppIcon-Info.plist"
 /usr/bin/codesign --force --sign - "$bundle_path"
 
 # Install from a fully-built, signed staging bundle. Moving the current copy

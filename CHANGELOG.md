@@ -6,6 +6,10 @@
 
 - 提升 bundle 版本以使 Spotlight 与 LaunchServices 读取新的正式应用图标。
 
+### 0.1.2 · 2026-09-19
+
+- 增加标准 macOS App Icon asset catalog 和 `CFBundleIconName`，修复 Spotlight 显示通用蓝色网格占位图标的问题。
+
 ### 日常提醒
 
 - 设置整理为提醒、图片库、通用三页；菜单显示剩余时间、暂停及延后原因。
