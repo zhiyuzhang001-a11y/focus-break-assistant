@@ -2,7 +2,7 @@
 
 ## 本地工作流
 
-使用 macOS 14+、Swift 6.2。首次运行 `swift test`，再用 `./scripts/build-probe-app.sh` 打包。构建输出在 `.build/`；运行中的旧进程不会自动加载新二进制，需要退出并重新打开 App。
+使用 macOS 14+、Swift 6.2。首次运行 `swift test`，再用 `./scripts/build-probe-app.sh` 打包。脚本将新构建暂存、签名验证后安装到 `/Applications/Focus Break Assistant.app`，替换旧版本并重启该 App；不要手动制作“副本”或改名安装包。构建输出仍在 `.build/`，仅作中间产物。
 
 修改前创建分支，例如 `git switch -c codex/improve-reminder`。一个提交聚焦一项行为；提交说明包含改变原因和验证结果。不要提交用户图片、绝对机器路径、下载缓存、进程 ID 或本地设置。
 
@@ -27,7 +27,7 @@ Core 保持不依赖 AppKit。界面和系统服务放在应用 target，便于�
 ```sh
 swift test
 ./scripts/build-probe-app.sh
-codesign --verify --deep --strict .build/FocusBreakProbe.app
+codesign --verify --deep --strict '/Applications/Focus Break Assistant.app'
 git diff --check
 ```
 
@@ -42,3 +42,7 @@ git diff --check
 遵守根目录 `AGENTS.md`：不生成项目图片、不修改用户原图、保持照片比例、保留第三方作者和许可。仓库目前未指定源代码开源许可证；不要自行追加许可授权。第三方素材许可独立适用。
 
 `artifacts/` 用于本机实验输出；已有历史追踪文件暂保留，新输出默认忽略。需要共享结论时优先整理成脱敏的 `docs/` 报告，并注明实测、模拟与待验收的区别。
+
+## 安装规则
+
+正式本机安装路径固定为 `/Applications/Focus Break Assistant.app`。更新必须通过 `scripts/build-probe-app.sh` 覆盖这个路径；脚本在切换前验证临时 App，若安装失败会恢复旧版本。不要把同一 App 复制到其他“应用程序”位置或以“副本”命名保存。

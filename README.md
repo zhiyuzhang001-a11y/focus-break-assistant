@@ -26,10 +26,9 @@ git clone https://github.com/zhiyuzhang001-a11y/focus-break-assistant.git
 cd focus-break-assistant
 swift test
 ./scripts/build-probe-app.sh
-open .build/FocusBreakProbe.app
 ```
 
-目前从源码构建，尚未提供签名、公证的正式安装包。内部可执行文件沿用 `focus-break-probe` 名称。登录启动默认关闭，可在“设置 → 通用”中开启；开发版建议先固定 App 存放位置。
+构建脚本会将 App 安装为 `/Applications/Focus Break Assistant.app`，替换该位置的旧版本并自动启动。因此 Spotlight 可直接搜索“Focus Break Assistant”，后续更新也不会在“应用程序”中留下多个重名副本。内部可执行文件仍沿用 `focus-break-probe` 名称。当前是本机临时签名版本，尚未提供公证的正式安装包。登录启动默认关闭，可在“设置 → 通用”中开启。
 
 ## 提醒如何计时
 
