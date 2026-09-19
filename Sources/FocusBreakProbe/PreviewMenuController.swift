@@ -25,6 +25,7 @@ final class PreviewMenuController: NSObject, NSMenuDelegate {
     private var settingsStatus: NSTextField?
     private var settingsLibraryStatus: NSTextField?
     private var settingsLoginStatus: NSTextField?
+    private(set) var statusVisualState: ReminderVisualState = .working
     private let dailyStatus = NSMenuItem(title: "每日照片：尚未配置", action: nil, keyEquivalent: "")
     private let dailySource = NSMenuItem(title: "照片来自 Pexels", action: nil, keyEquivalent: "")
 
@@ -33,8 +34,9 @@ final class PreviewMenuController: NSObject, NSMenuDelegate {
         super.init()
         NotificationCenter.default.addObserver(self, selector: #selector(displayLayoutChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
 
-        statusItem.button?.image = Self.menuBarImage()
+        statusItem.button?.image = Self.menuBarImage(for: .working)
         statusItem.button?.toolTip = "Focus Break Assistant"
+        statusItem.button?.setAccessibilityLabel("Focus Break Assistant · 工作中")
 
         let menu = NSMenu()
         menu.delegate = self
@@ -82,6 +84,7 @@ final class PreviewMenuController: NSObject, NSMenuDelegate {
         reminders.onReminder = { [weak self] in self?.showPreview(automatic: true) != nil }
         reminders.onStatus = { [weak self] text in self?.reminderStatus.title = text; self?.settingsStatus?.stringValue = text
             self?.settingsLibraryStatus?.stringValue = (self?.libraryStatus.title ?? "") + "\n" + OnlineReservoir.shared.status }
+        reminders.onVisualState = { [weak self] state in self?.updateMenuBarIcon(for: state) }
         reminders.onSystemRest = { [weak self] in
             self?.currentOverlay?.dismiss()
             self?.currentOverlay = nil
@@ -494,44 +497,67 @@ final class PreviewMenuController: NSObject, NSMenuDelegate {
         } ?? NSScreen.main ?? NSScreen.screens.first
     }
 
-    private static func menuBarImage() -> NSImage {
+    private func updateMenuBarIcon(for state: ReminderVisualState) {
+        guard statusVisualState != state || statusItem.button?.image == nil else { return }
+        statusVisualState = state
+        statusItem.button?.image = Self.menuBarImage(for: state)
+        statusItem.button?.setAccessibilityLabel("Focus Break Assistant · \(Self.accessibilityDescription(for: state))")
+    }
+
+    private static func accessibilityDescription(for state: ReminderVisualState) -> String {
+        switch state {
+        case .working: "工作中"
+        case .upcoming: "即将休息"
+        case .resting: "正在休息"
+        case .resumed: "恢复工作"
+        case .paused: "自动提醒已暂停"
+        }
+    }
+
+    private static func menuBarImage(for state: ReminderVisualState) -> NSImage {
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
-            NSColor.labelColor.setStroke()
-            let frame = NSBezierPath(roundedRect: NSRect(x: 1.75, y: 2.25, width: 14.5, height: 13),
-                                     xRadius: 2, yRadius: 2)
-            frame.lineWidth = 1.25
-            frame.stroke()
+            let color: NSColor = switch state {
+            case .working, .paused: .labelColor
+            case .upcoming: .systemBlue
+            case .resting: .systemOrange
+            case .resumed: .systemGreen
+            }
+            color.setStroke(); color.setFill()
 
-            // A divided window with sunrise: the compact form of the full
-            // application icon, legible as a monochrome menu-bar template.
-            let divider = NSBezierPath()
-            divider.lineWidth = 1.25
-            divider.move(to: NSPoint(x: 8.5, y: 3.25))
-            divider.line(to: NSPoint(x: 8.5, y: 14.25))
-            divider.stroke()
+            let ring = NSBezierPath()
+            ring.lineWidth = 2.15
+            ring.lineCapStyle = .round
+            let endAngle: CGFloat = state == .resting ? 34 : 48
+            ring.appendArc(withCenter: NSPoint(x: 8.3, y: 8.8), radius: 6.15,
+                           startAngle: endAngle, endAngle: 332, clockwise: false)
+            ring.stroke()
 
-            let horizon = NSBezierPath()
-            horizon.lineWidth = 1.15
-            horizon.lineCapStyle = .round
-            horizon.move(to: NSPoint(x: 9.8, y: 6.9))
-            horizon.line(to: NSPoint(x: 15.05, y: 6.9))
-            horizon.stroke()
-
-            let sunrise = NSBezierPath()
-            sunrise.lineWidth = 1.15
-            sunrise.appendArc(withCenter: NSPoint(x: 12.45, y: 6.9), radius: 2.35,
-                              startAngle: 0, endAngle: 180, clockwise: false)
-            sunrise.stroke()
-
-            let ray = NSBezierPath()
-            ray.lineWidth = 1.1
-            ray.lineCapStyle = .round
-            ray.move(to: NSPoint(x: 12.45, y: 10.25))
-            ray.line(to: NSPoint(x: 12.45, y: 11.25))
-            ray.stroke()
+            switch state {
+            case .resting:
+                NSBezierPath(ovalIn: NSRect(x: 13.1, y: 11.8, width: 3.1, height: 3.1)).fill()
+                NSBezierPath(ovalIn: NSRect(x: 14.55, y: 7.85, width: 1.55, height: 1.55)).fill()
+            case .paused:
+                NSBezierPath(roundedRect: NSRect(x: 6.05, y: 5.6, width: 1.65, height: 6.2), xRadius: 0.6, yRadius: 0.6).fill()
+                NSBezierPath(roundedRect: NSRect(x: 9.2, y: 5.6, width: 1.65, height: 6.2), xRadius: 0.6, yRadius: 0.6).fill()
+            case .working, .upcoming, .resumed:
+                let hands = NSBezierPath()
+                hands.lineWidth = 1.85
+                hands.lineCapStyle = .round
+                hands.lineJoinStyle = .round
+                hands.move(to: NSPoint(x: 8.3, y: 12.45))
+                hands.line(to: NSPoint(x: 8.3, y: 8.8))
+                hands.line(to: NSPoint(x: 11.15, y: 6.75))
+                hands.stroke()
+                if state != .working {
+                    NSBezierPath(ovalIn: NSRect(x: 13.25, y: 11.95, width: 2.9, height: 2.9)).fill()
+                }
+                if state == .resumed {
+                    NSBezierPath(ovalIn: NSRect(x: 14.45, y: 8.45, width: 1.45, height: 1.45)).fill()
+                }
+            }
             return true
         }
-        image.isTemplate = true
+        image.isTemplate = state == .working || state == .paused
         return image
     }
 }

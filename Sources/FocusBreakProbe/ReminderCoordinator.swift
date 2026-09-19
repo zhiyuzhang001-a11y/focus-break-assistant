@@ -1,6 +1,14 @@
 import AppKit
 import FocusBreakProbeCore
 
+enum ReminderVisualState: String, CaseIterable {
+    case working
+    case upcoming
+    case resting
+    case resumed
+    case paused
+}
+
 @MainActor
 final class ReminderCoordinator {
     private let defaults: UserDefaults
@@ -8,6 +16,8 @@ final class ReminderCoordinator {
     private var timer: Timer?
     private var lastIdle: Double = 0
     private var unavailable = false
+    private var wasResting = false
+    private var resumedUntil: TimeInterval?
     private var pendingReason = "等待检查当前屏幕"
     private lazy var collector = MacSignalCollector { [weak self] _ in
         self?.engine.reset()
@@ -17,6 +27,7 @@ final class ReminderCoordinator {
     var isUIBusy: () -> Bool = { false }
     var onReminder: () -> Bool = { false }
     var onStatus: (String) -> Void = { _ in }
+    var onVisualState: (ReminderVisualState) -> Void = { _ in }
     var onSystemRest: (() -> Void)?
     var isPaused: Bool { engine.isPaused }
     var minutes: Int { Int(engine.interval / 60) }
@@ -52,7 +63,11 @@ final class ReminderCoordinator {
         publishStatus()
     }
 
-    func beginBreak() { engine.beginBreak(now: ProcessInfo.processInfo.systemUptime); publishStatus() }
+    func beginBreak() {
+        engine.beginBreak(now: ProcessInfo.processInfo.systemUptime)
+        wasResting = true
+        publishStatus()
+    }
     func snooze() { engine.snooze(); publishStatus() }
     func finishReminder(expired: Bool) {
         engine.finishReminder(expired: expired, retryUnanswered: defaults.bool(forKey: "retryUnansweredReminder"))
@@ -66,6 +81,9 @@ final class ReminderCoordinator {
         unavailable = activity.sessionInactive || activity.systemSleeping || activity.displaySleepState == .yes
         let now = ProcessInfo.processInfo.systemUptime
         _ = engine.update(now: now, idle: lastIdle, unavailable: unavailable, fullScreen: .unknown)
+        let isResting = unavailable || lastIdle >= 180 || engine.breakEndsAt != nil
+        if wasResting && !isResting { resumedUntil = now + 60 }
+        wasResting = isResting
         pendingReason = isUIBusy() ? "设置或提醒窗口正在显示" : "等待恢复使用"
         if engine.isDue, !unavailable, lastIdle < 180, !isUIBusy() {
             let context = collector.snapshot()
@@ -82,6 +100,7 @@ final class ReminderCoordinator {
     }
 
     func publishStatus() {
+        onVisualState(visualState)
         let remaining = Int(ceil(engine.remaining / 60))
         if let end = engine.breakEndsAt {
             onStatus("休息中 · 还剩 \(max(0, Int(ceil((end - ProcessInfo.processInfo.systemUptime) / 60)))) 分钟" + (engine.isPaused ? " · 自动提醒已暂停" : ""))
@@ -94,5 +113,13 @@ final class ReminderCoordinator {
         else {
             onStatus("距下次提醒约 \(Int(ceil(engine.remaining / 60))) 分钟")
         }
+    }
+
+    var visualState: ReminderVisualState {
+        if engine.isPaused { return .paused }
+        if engine.breakEndsAt != nil || unavailable || lastIdle >= 180 { return .resting }
+        if let resumedUntil, ProcessInfo.processInfo.systemUptime < resumedUntil { return .resumed }
+        if engine.hasReminded || engine.isDue || engine.remaining <= 5 * 60 { return .upcoming }
+        return .working
     }
 }

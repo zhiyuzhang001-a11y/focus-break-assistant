@@ -5,11 +5,29 @@ import Testing
 @Suite(.serialized)
 @MainActor
 struct ReminderControlsTests {
+    @Test func menuBarStateTracksReminderMeaning() {
+        let suite = "ReminderControlsTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let coordinator = ReminderCoordinator(defaults: defaults, intervalOverride: 45 * 60)
+
+        #expect(coordinator.visualState == .working)
+        coordinator.togglePause()
+        #expect(coordinator.visualState == .paused)
+        coordinator.togglePause()
+        coordinator.snooze()
+        #expect(coordinator.visualState == .upcoming)
+        coordinator.beginBreak()
+        #expect(coordinator.visualState == .resting)
+    }
+
     @Test func settingsPagesAndMenu() throws {
         _ = NSApplication.shared
         let controller = PreviewMenuController()
         #expect(Array(controller.menuItemTitles.dropFirst()) == ["暂停自动提醒", "预览下一张", "设置…", "退出 Focus Break Assistant"] ||
                 Array(controller.menuItemTitles.dropFirst()) == ["恢复自动提醒", "预览下一张", "设置…", "退出 Focus Break Assistant"])
+        #expect(controller.statusVisualState == .working || controller.statusVisualState == .paused)
+        #expect(controller.hasTemplateIcon)
         controller.openSettings()
         let window = try #require(NSApp.windows.first { $0.title == "Focus Break Assistant 设置" })
         defer { window.close() }
