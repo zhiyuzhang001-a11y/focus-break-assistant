@@ -495,20 +495,40 @@ final class PreviewMenuController: NSObject, NSMenuDelegate {
     }
 
     private static func menuBarImage() -> NSImage {
-        if let image = NSImage(systemSymbolName: "timer", accessibilityDescription: "休息提醒") {
-            image.isTemplate = true
-            return image
-        }
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
             NSColor.labelColor.setStroke()
-            let path = NSBezierPath()
-            path.lineWidth = 1.5
-            path.lineCapStyle = .round
-            path.move(to: NSPoint(x: 2.5, y: 9))
-            path.line(to: NSPoint(x: 7.2, y: 9))
-            path.move(to: NSPoint(x: 10.8, y: 9))
-            path.line(to: NSPoint(x: 15.5, y: 9))
-            path.stroke()
+            let frame = NSBezierPath(roundedRect: NSRect(x: 1.75, y: 2.25, width: 14.5, height: 13),
+                                     xRadius: 2, yRadius: 2)
+            frame.lineWidth = 1.25
+            frame.stroke()
+
+            // A divided window with sunrise: the compact form of the full
+            // application icon, legible as a monochrome menu-bar template.
+            let divider = NSBezierPath()
+            divider.lineWidth = 1.25
+            divider.move(to: NSPoint(x: 8.5, y: 3.25))
+            divider.line(to: NSPoint(x: 8.5, y: 14.25))
+            divider.stroke()
+
+            let horizon = NSBezierPath()
+            horizon.lineWidth = 1.15
+            horizon.lineCapStyle = .round
+            horizon.move(to: NSPoint(x: 9.8, y: 6.9))
+            horizon.line(to: NSPoint(x: 15.05, y: 6.9))
+            horizon.stroke()
+
+            let sunrise = NSBezierPath()
+            sunrise.lineWidth = 1.15
+            sunrise.appendArc(withCenter: NSPoint(x: 12.45, y: 6.9), radius: 2.35,
+                              startAngle: 0, endAngle: 180, clockwise: false)
+            sunrise.stroke()
+
+            let ray = NSBezierPath()
+            ray.lineWidth = 1.1
+            ray.lineCapStyle = .round
+            ray.move(to: NSPoint(x: 12.45, y: 10.25))
+            ray.line(to: NSPoint(x: 12.45, y: 11.25))
+            ray.stroke()
             return true
         }
         image.isTemplate = true
