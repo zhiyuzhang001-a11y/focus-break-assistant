@@ -514,7 +514,7 @@ final class PreviewMenuController: NSObject, NSMenuDelegate {
         }
     }
 
-    private static func menuBarImage(for state: ReminderVisualState) -> NSImage {
+    static func menuBarImage(for state: ReminderVisualState) -> NSImage {
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
             let color: NSColor = switch state {
             case .working, .paused: .labelColor

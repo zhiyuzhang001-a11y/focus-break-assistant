@@ -5,6 +5,37 @@ import Testing
 @Suite(.serialized)
 @MainActor
 struct ReminderControlsTests {
+    @Test func menuBarIconsRenderWithStateColorsAndTemplateFallbacks() throws {
+        _ = NSApplication.shared
+        for state in ReminderVisualState.allCases {
+            let image = PreviewMenuController.menuBarImage(for: state)
+            #expect(image.size == NSSize(width: 18, height: 18))
+            #expect(image.isTemplate == (state == .working || state == .paused))
+
+            guard !image.isTemplate else { continue }
+            let tiff = try #require(image.tiffRepresentation)
+            let bitmap = try #require(NSBitmapImageRep(data: tiff))
+            let colors = (0..<bitmap.pixelsHigh).flatMap { y in
+                (0..<bitmap.pixelsWide).compactMap { x -> NSColor? in
+                    guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB), color.alphaComponent > 0.2 else { return nil }
+                    return color
+                }
+            }
+            try #require(!colors.isEmpty)
+            let count = CGFloat(colors.count)
+            let average = colors.reduce((red: CGFloat.zero, green: CGFloat.zero, blue: CGFloat.zero)) {
+                ($0.red + $1.redComponent, $0.green + $1.greenComponent, $0.blue + $1.blueComponent)
+            }
+            let red = average.red / count, green = average.green / count, blue = average.blue / count
+            switch state {
+            case .upcoming: #expect(blue > red && blue > green)
+            case .resting: #expect(red > green && green > blue)
+            case .resumed: #expect(green > red && green > blue)
+            case .working, .paused: break
+            }
+        }
+    }
+
     @Test func menuBarStateTracksReminderMeaning() {
         let suite = "ReminderControlsTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
