@@ -1,5 +1,20 @@
 # Focus Break Assistant
 
+Focus Break Assistant is an AppKit menu bar app for taking short breaks on macOS.
+It schedules a photo reminder after a period of active use and lets you start a
+break, snooze, or skip. It requires macOS 14 or later. The repository provides a
+development preview built with Swift 6.2 or later.
+
+- **Preview a reminder** from the menu bar, then use Settings to adjust timing and photo sources.
+- **Choose a photo library** from built-in images, a local folder, selected photos, or online categories.
+- **Check how reminders are timed** in the [reminder rules](docs/REMINDER_MVP.md), including idle and fullscreen behavior.
+
+For a source-level check, run `swift test` in the repository with a compatible
+macOS toolchain. The install command in the Chinese guide below replaces the
+existing app at its standard Applications path and launches it. The
+[overnight validation record](docs/OVERNIGHT_ACCEPTANCE_20260907.md)
+describes the completed checks and remaining real-device scenarios.
+
 **给下一段专注，留一点余白。**
 
 一个低打扰的 macOS 菜单栏休息助手。用一张照片提醒你短暂离开屏幕；可以开始休息、稍后再说，也可以直接跳过。
